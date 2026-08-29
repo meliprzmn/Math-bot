@@ -1,6 +1,6 @@
 # =========================================================
 # Telegram Math Bot
-# Python 3 + python-telegram-bot
+# Flask + python-telegram-bot
 # Render Compatible
 # =========================================================
 
@@ -37,7 +37,7 @@ if not TOKEN:
 
 
 # =========================================================
-# Flask برای زنده نگه داشتن Web Service در Render
+# Flask برای Render
 # =========================================================
 
 web_app = Flask(__name__)
@@ -45,7 +45,7 @@ web_app = Flask(__name__)
 
 @web_app.route("/")
 def home():
-    return "Telegram Math Bot is running!"
+    return "Telegram Math Bot is running! 🤖"
 
 
 @web_app.route("/health")
@@ -53,7 +53,7 @@ def health():
     return "OK"
 
 
-def run_web_server():
+def run_flask():
     port = int(os.environ.get("PORT", 10000))
     web_app.run(
         host="0.0.0.0",
@@ -109,6 +109,7 @@ BOOKS = {
     "riazi": {
 
         "دهم": {
+
             "ریاضی (۱)": [
                 "فصل اول: مجموعه، الگو و دنباله",
                 "فصل دوم: مثلثات",
@@ -127,6 +128,7 @@ BOOKS = {
         },
 
         "یازدهم": {
+
             "حسابان (۱)": [
                 "فصل اول: جبر و معادله",
                 "فصل دوم: تابع",
@@ -150,6 +152,7 @@ BOOKS = {
         },
 
         "دوازدهم": {
+
             "حسابان (۲)": [
                 "فصل اول: تابع",
                 "فصل دوم: مثلثات",
@@ -188,23 +191,33 @@ LESSONS = {
 
 
 # =========================================================
-# ذخیره انتخاب کاربران
+# ذخیره موقت انتخاب کاربران
 # =========================================================
 
 user_data = {}
 
 
 # =========================================================
+# ابزارهای کمکی
+# =========================================================
+
+def get_field_title(field):
+    if field == "riazi":
+        return "📐 رشته ریاضی"
+    return "🧬 رشته تجربی"
+
+
+# =========================================================
 # /start
 # =========================================================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     keyboard = [
-        [
-            "📐 رشته ریاضی",
-            "🧬 رشته تجربی",
-        ]
+        ["📐 رشته ریاضی", "🧬 رشته تجربی"]
     ]
 
     reply_markup = ReplyKeyboardMarkup(
@@ -215,7 +228,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "سلام 👋\n\n"
         "به ربات آموزش ریاضی خوش آمدی 🌱\n\n"
-        "لطفاً رشته خودت را انتخاب کن:",
+        "از منوی زیر رشته خودت را انتخاب کن:",
         reply_markup=reply_markup
     )
 
@@ -224,20 +237,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # انتخاب رشته
 # =========================================================
 
-async def select_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def select_field(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     if not update.message:
         return
 
     text = update.message.text
 
-    if text == "🧬 رشته تجربی":
-        field = "tajrobi"
-        title = "🧬 رشته تجربی"
-
-    elif text == "📐 رشته ریاضی":
+    if text == "📐 رشته ریاضی":
         field = "riazi"
         title = "📐 رشته ریاضی"
+
+    elif text == "🧬 رشته تجربی":
+        field = "tajrobi"
+        title = "🧬 رشته تجربی"
 
     else:
         return
@@ -251,41 +267,47 @@ async def select_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "chapter": None,
     }
 
-    await show_grades(update, field, title)
+    await show_grades(
+        update,
+        field,
+        title
+    )
 
 
 # =========================================================
 # نمایش پایه‌ها
 # =========================================================
 
-async def show_grades(update, field, title):
+async def show_grades(
+    update,
+    field,
+    title
+):
 
     grades = list(BOOKS[field].keys())
 
     keyboard = []
 
-    for grade in grades:
+    for grade_index, grade in enumerate(grades):
 
         keyboard.append([
             InlineKeyboardButton(
                 f"📚 پایه {grade}",
-                callback_data=f"grade|{field}|{grade}"
+                callback_data=f"grade|{field}|{grade_index}"
             )
         ])
 
     keyboard.append([
         InlineKeyboardButton(
-            "🔙 بازگشت به انتخاب رشته",
+            "🔙 بازگشت به رشته‌ها",
             callback_data="back_field"
         )
     ])
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text(
         f"{title}\n\n"
         "پایه موردنظر خودت را انتخاب کن:",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -293,18 +315,28 @@ async def show_grades(update, field, title):
 # نمایش کتاب‌ها
 # =========================================================
 
-async def show_books(query, field, grade):
+async def show_books(
+    query,
+    field,
+    grade_index
+):
 
-    books = BOOKS[field][grade]
+    grades = list(BOOKS[field].keys())
+
+    grade = grades[grade_index]
+
+    books = list(BOOKS[field][grade].keys())
 
     keyboard = []
 
-    for index, book in enumerate(books):
+    for book_index, book in enumerate(books):
 
         keyboard.append([
             InlineKeyboardButton(
                 f"📖 {book}",
-                callback_data=f"book|{field}|{grade}|{index}"
+                callback_data=(
+                    f"book|{field}|{grade_index}|{book_index}"
+                )
             )
         ])
 
@@ -315,12 +347,10 @@ async def show_books(query, field, grade):
         )
     ])
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     await query.edit_message_text(
         f"📚 پایه {grade}\n\n"
         "کتاب موردنظر را انتخاب کن:",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -328,20 +358,34 @@ async def show_books(query, field, grade):
 # نمایش فصل‌ها
 # =========================================================
 
-async def show_chapters(query, field, grade, book):
+async def show_chapters(
+    query,
+    field,
+    grade_index,
+    book_index
+):
+
+    grades = list(BOOKS[field].keys())
+    grade = grades[grade_index]
+
+    books = list(BOOKS[field][grade].keys())
+    book = books[book_index]
 
     chapters = BOOKS[field][grade][book]
 
     keyboard = []
 
-    for index, chapter in enumerate(chapters):
+    for chapter_index, chapter in enumerate(chapters):
 
         keyboard.append([
             InlineKeyboardButton(
                 f"📘 {chapter}",
                 callback_data=(
-                    f"chapter|{field}|{grade}|"
-                    f"{list(BOOKS[field][grade].keys()).index(book)}|{index}"
+                    f"chapter|"
+                    f"{field}|"
+                    f"{grade_index}|"
+                    f"{book_index}|"
+                    f"{chapter_index}"
                 )
             )
         ])
@@ -349,16 +393,18 @@ async def show_chapters(query, field, grade, book):
     keyboard.append([
         InlineKeyboardButton(
             "🔙 بازگشت به کتاب‌ها",
-            callback_data=f"back_books|{field}|{grade}"
+            callback_data=(
+                f"back_books|"
+                f"{field}|"
+                f"{grade_index}"
+            )
         )
     ])
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(
         f"📖 {book}\n\n"
         "فصل موردنظر را انتخاب کن:",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -369,10 +415,16 @@ async def show_chapters(query, field, grade, book):
 async def show_lesson_menu(
     query,
     field,
-    grade,
-    book,
+    grade_index,
+    book_index,
     chapter_index
 ):
+
+    grades = list(BOOKS[field].keys())
+    grade = grades[grade_index]
+
+    books = list(BOOKS[field][grade].keys())
+    book = books[book_index]
 
     chapter = BOOKS[field][grade][book][chapter_index]
 
@@ -382,9 +434,9 @@ async def show_lesson_menu(
             InlineKeyboardButton(
                 "📚 درسنامه",
                 callback_data=(
-                    f"content|lesson|{field}|{grade}|"
-                    f"{list(BOOKS[field][grade].keys()).index(book)}|"
-                    f"{chapter_index}"
+                    f"content|lesson|"
+                    f"{field}|{grade_index}|"
+                    f"{book_index}|{chapter_index}"
                 )
             )
         ],
@@ -393,9 +445,9 @@ async def show_lesson_menu(
             InlineKeyboardButton(
                 "📝 تست",
                 callback_data=(
-                    f"content|test|{field}|{grade}|"
-                    f"{list(BOOKS[field][grade].keys()).index(book)}|"
-                    f"{chapter_index}"
+                    f"content|test|"
+                    f"{field}|{grade_index}|"
+                    f"{book_index}|{chapter_index}"
                 )
             )
         ],
@@ -404,9 +456,9 @@ async def show_lesson_menu(
             InlineKeyboardButton(
                 "✍️ سوالات تشریحی",
                 callback_data=(
-                    f"content|descriptive|{field}|{grade}|"
-                    f"{list(BOOKS[field][grade].keys()).index(book)}|"
-                    f"{chapter_index}"
+                    f"content|descriptive|"
+                    f"{field}|{grade_index}|"
+                    f"{book_index}|{chapter_index}"
                 )
             )
         ],
@@ -415,9 +467,9 @@ async def show_lesson_menu(
             InlineKeyboardButton(
                 "🔄 مرور نکات",
                 callback_data=(
-                    f"content|review|{field}|{grade}|"
-                    f"{list(BOOKS[field][grade].keys()).index(book)}|"
-                    f"{chapter_index}"
+                    f"content|review|"
+                    f"{field}|{grade_index}|"
+                    f"{book_index}|{chapter_index}"
                 )
             )
         ],
@@ -426,9 +478,9 @@ async def show_lesson_menu(
             InlineKeyboardButton(
                 "🎯 آزمون‌ها",
                 callback_data=(
-                    f"content|exam|{field}|{grade}|"
-                    f"{list(BOOKS[field][grade].keys()).index(book)}|"
-                    f"{chapter_index}"
+                    f"content|exam|"
+                    f"{field}|{grade_index}|"
+                    f"{book_index}|{chapter_index}"
                 )
             )
         ],
@@ -437,34 +489,38 @@ async def show_lesson_menu(
             InlineKeyboardButton(
                 "🔙 بازگشت به فصل‌ها",
                 callback_data=(
-                    f"back_chapters|{field}|{grade}|"
-                    f"{list(BOOKS[field][grade].keys()).index(book)}"
+                    f"back_chapters|"
+                    f"{field}|{grade_index}|{book_index}"
                 )
             )
         ],
     ]
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     await query.edit_message_text(
         f"📘 {chapter}\n\n"
         "بخش موردنظر خودت را انتخاب کن:",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
 # =========================================================
-# نمایش محتوا
+# نمایش محتوای آموزشی
 # =========================================================
 
 async def show_content(
     query,
     content_type,
     field,
-    grade,
-    book,
+    grade_index,
+    book_index,
     chapter_index
 ):
+
+    grades = list(BOOKS[field].keys())
+    grade = grades[grade_index]
+
+    books = list(BOOKS[field][grade].keys())
+    book = books[book_index]
 
     chapter = BOOKS[field][grade][book][chapter_index]
 
@@ -475,178 +531,192 @@ async def show_content(
             InlineKeyboardButton(
                 "🔙 بازگشت",
                 callback_data=(
-                    f"chapter|{field}|{grade}|"
-                    f"{list(BOOKS[field][grade].keys()).index(book)}|"
-                    f"{chapter_index}"
+                    f"chapter|"
+                    f"{field}|{grade_index}|"
+                    f"{book_index}|{chapter_index}"
                 )
             )
         ]
     ]
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     text = (
         f"{title}\n\n"
-        f"📚 کتاب: {book}\n"
+        f"📚 رشته: {get_field_title(field)}\n"
+        f"🎓 پایه: {grade}\n"
+        f"📖 کتاب: {book}\n"
         f"📘 {chapter}\n\n"
-        "⏳ محتوای این بخش هنوز وارد نشده است.\n\n"
-        "ساختار بات آماده است و در مرحله بعد "
-        "می‌توانیم درسنامه، تست، سوالات تشریحی، "
-        "مرور نکات و آزمون‌ها را اضافه کنیم."
+        "⏳ محتوای این قسمت هنوز وارد نشده است.\n\n"
+        "ساختار ربات آماده است و می‌توانیم "
+        "درسنامه، تست، سوالات تشریحی، "
+        "مرور نکات و آزمون‌ها را به آن اضافه کنیم."
     )
 
     await query.edit_message_text(
         text,
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
 # =========================================================
-# مدیریت دکمه‌ها
+# مدیریت دکمه‌های Inline
 # =========================================================
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     query = update.callback_query
 
     await query.answer()
 
     data = query.data.split("|")
+
     action = data[0]
 
+    # =====================================================
     # انتخاب پایه
+    # =====================================================
+
     if action == "grade":
 
         field = data[1]
-        grade = data[2]
+        grade_index = int(data[2])
+
+        grades = list(BOOKS[field].keys())
+        grade = grades[grade_index]
 
         user_id = query.from_user.id
 
         user_data[user_id] = {
             "field": field,
-            "grade": grade,
+            "grade": grade_index,
             "book": None,
             "chapter": None,
         }
 
-        await show_books(query, field, grade)
+        await show_books(
+            query,
+            field,
+            grade_index
+        )
 
+    # =====================================================
     # انتخاب کتاب
+    # =====================================================
+
     elif action == "book":
 
         field = data[1]
-        grade = data[2]
+        grade_index = int(data[2])
         book_index = int(data[3])
-
-        books = list(BOOKS[field][grade].keys())
-        book = books[book_index]
 
         user_id = query.from_user.id
 
-        user_data[user_id] = {
-            "field": field,
-            "grade": grade,
-            "book": book,
-            "chapter": None,
-        }
+        if user_id not in user_data:
+            user_data[user_id] = {}
+
+        user_data[user_id]["field"] = field
+        user_data[user_id]["grade"] = grade_index
+        user_data[user_id]["book"] = book_index
 
         await show_chapters(
             query,
             field,
-            grade,
-            book
+            grade_index,
+            book_index
         )
 
+    # =====================================================
     # انتخاب فصل
+    # =====================================================
+
     elif action == "chapter":
 
         field = data[1]
-        grade = data[2]
+        grade_index = int(data[2])
         book_index = int(data[3])
         chapter_index = int(data[4])
 
-        books = list(BOOKS[field][grade].keys())
-        book = books[book_index]
-
         user_id = query.from_user.id
 
-        user_data[user_id] = {
-            "field": field,
-            "grade": grade,
-            "book": book,
-            "chapter": chapter_index,
-        }
+        if user_id not in user_data:
+            user_data[user_id] = {}
+
+        user_data[user_id]["field"] = field
+        user_data[user_id]["grade"] = grade_index
+        user_data[user_id]["book"] = book_index
+        user_data[user_id]["chapter"] = chapter_index
 
         await show_lesson_menu(
             query,
             field,
-            grade,
-            book,
+            grade_index,
+            book_index,
             chapter_index
         )
 
+    # =====================================================
     # محتوای آموزشی
+    # =====================================================
+
     elif action == "content":
 
         content_type = data[1]
         field = data[2]
-        grade = data[3]
+        grade_index = int(data[3])
         book_index = int(data[4])
         chapter_index = int(data[5])
-
-        books = list(BOOKS[field][grade].keys())
-        book = books[book_index]
 
         await show_content(
             query,
             content_type,
             field,
-            grade,
-            book,
+            grade_index,
+            book_index,
             chapter_index
         )
 
+    # =====================================================
     # بازگشت به رشته‌ها
+    # =====================================================
+
     elif action == "back_field":
 
         keyboard = [
-            [
-                "📐 رشته ریاضی",
-                "🧬 رشته تجربی",
-            ]
+            ["📐 رشته ریاضی", "🧬 رشته تجربی"]
         ]
-
-        reply_markup = ReplyKeyboardMarkup(
-            keyboard,
-            resize_keyboard=True
-        )
 
         await query.message.reply_text(
             "لطفاً رشته خودت را انتخاب کن:",
-            reply_markup=reply_markup
+            reply_markup=ReplyKeyboardMarkup(
+                keyboard,
+                resize_keyboard=True
+            )
         )
 
+    # =====================================================
     # بازگشت به پایه‌ها
+    # =====================================================
+
     elif action == "back_grades":
 
         field = data[1]
 
-        title = (
-            "📐 رشته ریاضی"
-            if field == "riazi"
-            else "🧬 رشته تجربی"
-        )
+        title = get_field_title(field)
 
         grades = list(BOOKS[field].keys())
 
         keyboard = []
 
-        for grade in grades:
+        for grade_index, grade in enumerate(grades):
 
             keyboard.append([
                 InlineKeyboardButton(
                     f"📚 پایه {grade}",
-                    callback_data=f"grade|{field}|{grade}"
+                    callback_data=(
+                        f"grade|{field}|{grade_index}"
+                    )
                 )
             ])
 
@@ -657,83 +727,78 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         ])
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
         await query.edit_message_text(
             f"{title}\n\n"
             "پایه موردنظر را انتخاب کن:",
-            reply_markup=reply_markup
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
+    # =====================================================
     # بازگشت به کتاب‌ها
+    # =====================================================
+
     elif action == "back_books":
 
         field = data[1]
-        grade = data[2]
+        grade_index = int(data[2])
 
         await show_books(
             query,
             field,
-            grade
+            grade_index
         )
 
+    # =====================================================
     # بازگشت به فصل‌ها
+    # =====================================================
+
     elif action == "back_chapters":
 
         field = data[1]
-        grade = data[2]
+        grade_index = int(data[2])
         book_index = int(data[3])
-
-        books = list(BOOKS[field][grade].keys())
-        book = books[book_index]
 
         await show_chapters(
             query,
             field,
-            grade,
-            book
+            grade_index,
+            book_index
         )
 
 
 # =========================================================
-# مدیریت خطا
+# خطا
 # =========================================================
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+async def error_handler(
+    update: object,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     print("\n========== ERROR ==========")
     print(context.error)
-    print("============================\n")
+    print("===========================\n")
 
 
 # =========================================================
-# اجرای ربات
+# اجرای Telegram Bot
 # =========================================================
 
-def main():
+def run_bot():
 
     print("================================")
     print("      Telegram Math Bot")
     print("         Starting...")
     print("================================")
 
-    # اجرای وب‌سرور Render در یک Thread
-    web_thread = threading.Thread(
-        target=run_web_server,
-        daemon=True
-    )
-
-    web_thread.start()
-
-    # ساخت Telegram Application
-    app = (
+    application = (
         Application.builder()
         .token(TOKEN)
         .build()
     )
 
     # /start
-    app.add_handler(
+    application.add_handler(
         CommandHandler(
             "start",
             start
@@ -741,7 +806,7 @@ def main():
     )
 
     # پیام‌های متنی
-    app.add_handler(
+    application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
             select_field
@@ -749,24 +814,23 @@ def main():
     )
 
     # دکمه‌های Inline
-    app.add_handler(
+    application.add_handler(
         CallbackQueryHandler(
             button_handler
         )
     )
 
-    # خطاها
-    app.add_error_handler(
+    # مدیریت خطا
+    application.add_error_handler(
         error_handler
     )
 
     print("================================")
     print("      Telegram Math Bot")
-    print("         Bot is running")
+    print("       Bot is running!")
     print("================================")
 
-    # اجرای Telegram Bot
-    app.run_polling()
+    application.run_polling()
 
 
 # =========================================================
@@ -774,4 +838,14 @@ def main():
 # =========================================================
 
 if __name__ == "__main__":
-    main()
+
+    # اجرای Flask در یک Thread
+    flask_thread = threading.Thread(
+        target=run_flask,
+        daemon=True
+    )
+
+    flask_thread.start()
+
+    # اجرای Telegram Bot
+    run_bot()
